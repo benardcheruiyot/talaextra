@@ -47,6 +47,7 @@ const LoanProcessing = () => {
   const [loans, setLoans] = useState([]);
   const [loadingLoans, setLoadingLoans] = useState(true);
   const [nowTick, setNowTick] = useState(Date.now());
+  const [expandedLoanId, setExpandedLoanId] = useState(null);
 
   useEffect(() => {
     document.title = 'Loan Processing | Tala Mkopo Extra';
@@ -62,7 +63,11 @@ const LoanProcessing = () => {
     const fetchLoans = async () => {
       try {
         const data = await loanService.getUserLoans();
-        setLoans(Array.isArray(data) ? data : []);
+        const normalizedLoans = Array.isArray(data) ? data : [];
+        setLoans(normalizedLoans);
+        if (normalizedLoans.length > 0) {
+          setExpandedLoanId(normalizedLoans[0].id);
+        }
       } catch (error) {
         console.error('Failed to fetch user loans on processing page:', error);
         setLoans([]);
@@ -95,6 +100,95 @@ const LoanProcessing = () => {
     if (hours > 0) return `${hours}h ${minutes}m ago`;
     if (minutes > 0) return `${minutes}m ${seconds}s ago`;
     return `${seconds}s ago`;
+  };
+
+  const getLoanTimeline = (loanStatus) => {
+    const status = String(loanStatus || 'pending').toLowerCase();
+
+    if (status === 'approved' || status === 'completed') {
+      return [
+        {
+          id: 1,
+          title: 'Processing fee paid',
+          description: 'Your M-Pesa fee payment has been confirmed successfully.',
+          status: 'done',
+        },
+        {
+          id: 2,
+          title: 'Application reviewed',
+          description: 'Your loan details have been validated by our review team.',
+          status: 'done',
+        },
+        {
+          id: 3,
+          title: 'Disbursement approved',
+          description: 'Funds are ready or already sent to your M-Pesa account.',
+          status: 'done',
+        },
+        {
+          id: 4,
+          title: 'Completion notice',
+          description: 'Your application cycle is complete.',
+          status: 'done',
+        },
+      ];
+    }
+
+    if (status === 'failed' || status === 'cancelled' || status === 'expired') {
+      return [
+        {
+          id: 1,
+          title: 'Processing fee attempt logged',
+          description: 'We received your request and attempted to verify payment.',
+          status: 'done',
+        },
+        {
+          id: 2,
+          title: 'Application closed',
+          description: 'This application was not completed successfully.',
+          status: 'active',
+        },
+        {
+          id: 3,
+          title: 'Disbursement',
+          description: 'Disbursement did not happen for this application.',
+          status: 'pending',
+        },
+        {
+          id: 4,
+          title: 'Completion notice',
+          description: 'You can create a new application at any time.',
+          status: 'pending',
+        },
+      ];
+    }
+
+    return [
+      {
+        id: 1,
+        title: 'Processing fee paid',
+        description: 'Your M-Pesa fee payment has been confirmed successfully.',
+        status: 'done',
+      },
+      {
+        id: 2,
+        title: 'Application under review',
+        description: 'Our loan team is validating your request and account details.',
+        status: 'active',
+      },
+      {
+        id: 3,
+        title: 'Disbursement',
+        description: 'Once approved, funds will be sent directly to your M-Pesa account within 48 hours.',
+        status: 'pending',
+      },
+      {
+        id: 4,
+        title: 'Completion notice',
+        description: 'You will receive an SMS confirmation once disbursement is complete.',
+        status: 'pending',
+      },
+    ];
   };
 
   const currentApplication = useMemo(() => {
@@ -239,17 +333,69 @@ const LoanProcessing = () => {
               <div className="loan-processing-history-list">
                 {loans.map((loan) => (
                   <article key={loan.id} className="loan-processing-history-item">
-                    <div className="loan-processing-history-top">
-                      <strong>{formatCurrency(loan.amount)}</strong>
-                      <span className={`loan-processing-history-status ${loan.status || 'pending'}`}>
-                        {(loan.status || 'pending').toUpperCase()}
+                    <button
+                      type="button"
+                      className="loan-processing-history-toggle"
+                      onClick={() =>
+                        setExpandedLoanId((prev) => (prev === loan.id ? null : loan.id))
+                      }
+                      aria-expanded={expandedLoanId === loan.id}
+                    >
+                      <div className="loan-processing-history-top">
+                        <strong>{formatCurrency(loan.amount)}</strong>
+                        <span className={`loan-processing-history-status ${loan.status || 'pending'}`}>
+                          {(loan.status || 'pending').toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="loan-processing-history-meta">
+                        <span>Fee: {formatCurrency(loan.processingFee || 0)}</span>
+                        <span>Applied: {new Date(loan.createdAt).toLocaleString('en-KE')}</span>
+                        <span>Elapsed: {getElapsedTime(loan.createdAt)}</span>
+                      </div>
+                      <span className={`loan-processing-history-chevron ${expandedLoanId === loan.id ? 'open' : ''}`}>
+                        ▼
                       </span>
-                    </div>
-                    <div className="loan-processing-history-meta">
-                      <span>Fee: {formatCurrency(loan.processingFee || 0)}</span>
-                      <span>Applied: {new Date(loan.createdAt).toLocaleString('en-KE')}</span>
-                      <span>Elapsed: {getElapsedTime(loan.createdAt)}</span>
-                    </div>
+                    </button>
+
+                    {expandedLoanId === loan.id && (
+                      <div className="loan-processing-history-dropdown">
+                        <div className="loan-processing-history-summary-grid">
+                          <div>
+                            <span>Requested amount</span>
+                            <strong>{formatCurrency(loan.amount || 0)}</strong>
+                          </div>
+                          <div>
+                            <span>Fee paid</span>
+                            <strong>{formatCurrency(loan.processingFee || 0)}</strong>
+                          </div>
+                          <div>
+                            <span>Expected deposit</span>
+                            <strong>{formatCurrency(Math.max(Number(loan.amount || 0) - Number(loan.processingFee || 0), 0))}</strong>
+                          </div>
+                          <div>
+                            <span>Reference</span>
+                            <strong>{loan.id}</strong>
+                          </div>
+                        </div>
+
+                        <section className="loan-processing-history-timeline">
+                          {getLoanTimeline(loan.status).map((step, index) => (
+                            <article key={`${loan.id}-${step.id}`} className="loan-processing-timeline-item compact">
+                              <div className="loan-processing-timeline-track" aria-hidden="true">
+                                <span className={`loan-processing-timeline-dot ${step.status}`}>
+                                  {step.status === 'done' ? '✓' : ''}
+                                </span>
+                                {index < 3 && <span className="loan-processing-timeline-line" />}
+                              </div>
+                              <div className="loan-processing-timeline-copy">
+                                <h2>{step.title}</h2>
+                                <p>{step.description}</p>
+                              </div>
+                            </article>
+                          ))}
+                        </section>
+                      </div>
+                    )}
                   </article>
                 ))}
               </div>
