@@ -9,6 +9,7 @@ import './styles/globals.css';
 import Home from './pages/Home';
 import Eligibility from './pages/Eligibility';
 import Loan from './pages/Loan';
+import LoanProcessing from './pages/LoanProcessing';
 import Processing from './pages/Processing';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -58,6 +59,15 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <Loan />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/loan-processing"
+          element={
+            <ProtectedRoute>
+              <LoanProcessing />
             </ProtectedRoute>
           }
         />

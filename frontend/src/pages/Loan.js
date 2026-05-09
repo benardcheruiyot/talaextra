@@ -9,6 +9,16 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import './Loan.css';
 
+const formatLoanReceipt = (loan, checkoutReference, user) => ({
+  amount: loan.amount,
+  fee: loan.fee,
+  days: loan.days,
+  phone: user?.phone_number || '',
+  reference: checkoutReference,
+  status: 'processing',
+  submittedAt: new Date().toISOString(),
+});
+
 const Loan = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -296,6 +306,9 @@ const Loan = () => {
           if (statusResult.success) {
             clearInterval(paymentPollRef.current);
 
+            const applicationPayload = formatLoanReceipt(selectedLoan, checkoutReference, user);
+            localStorage.setItem('pending_loan_application', JSON.stringify(applicationPayload));
+
             Swal.fire({
               title: 'Payment Received',
               html: `
@@ -311,6 +324,10 @@ const Loan = () => {
               showConfirmButton: false,
             }).then(() => {
               if (isMountedRef.current) setLoading(false);
+              navigate('/loan-processing', {
+                replace: true,
+                state: applicationPayload,
+              });
             });
           } else if (
             statusResult.status === 'failed' ||
@@ -370,6 +387,9 @@ const Loan = () => {
             try {
               const finalStatusResult = await loanService.checkPaymentStatus(checkoutReference);
               if (finalStatusResult?.success) {
+                const applicationPayload = formatLoanReceipt(selectedLoan, checkoutReference, user);
+                localStorage.setItem('pending_loan_application', JSON.stringify(applicationPayload));
+
                 Swal.fire({
                   title: 'Payment Received',
                   html: `
@@ -385,6 +405,10 @@ const Loan = () => {
                   showConfirmButton: false,
                 }).then(() => {
                   if (isMountedRef.current) setLoading(false);
+                  navigate('/loan-processing', {
+                    replace: true,
+                    state: applicationPayload,
+                  });
                 });
                 return;
               }
@@ -436,32 +460,71 @@ const Loan = () => {
 
       <div className="apply-container">
         <div className="loan-content card">
-          <h1>Loan Options</h1>
+          <div className="loan-hero">
+            <div className="loan-hero-copy">
+              <span className="loan-eyebrow">Fast loan approval</span>
+              <h1>Choose the amount that fits your next move</h1>
+              <p className="apply-subtitle">
+                Clear fees, 3-column offers, secure M-Pesa payment, and a proper processing screen after payment.
+              </p>
 
-          <p className="apply-subtitle">
-            Get the financial support you need with our simple, transparent loan process
-          </p>
+              <div className="apply-pill-row">
+                <span>🔒 Secure M-Pesa</span>
+                <span>⚡ Quick decision</span>
+                <span>⭐ Trusted by borrowers</span>
+              </div>
+            </div>
 
-          <div className="apply-pill-row">
-            <span>🔒 256-bit Encryption</span>
-            <span>⚡ Instant Decisions</span>
-            <span>⭐ 4.8/5 Rating</span>
+            <div className="loan-hero-card">
+              <div className="loan-hero-card-label">Your loan snapshot</div>
+              <div className="loan-hero-card-amount">
+                {selectedLoan ? `Ksh ${selectedLoan.amount.toLocaleString()}` : 'Select an amount'}
+              </div>
+              <div className="loan-hero-card-detail">
+                {selectedLoan
+                  ? `Fee Ksh ${selectedLoan.fee.toLocaleString()} · Net deposit Ksh ${Math.max(
+                      selectedLoan.amount - selectedLoan.fee,
+                      0
+                    ).toLocaleString()}`
+                  : 'Tap a card below to preview your loan terms'}
+              </div>
+              <div className="loan-hero-mini-grid">
+                <div>
+                  <strong>60 days</strong>
+                  <span>Term</span>
+                </div>
+                <div>
+                  <strong>10%</strong>
+                  <span>Interest</span>
+                </div>
+                <div>
+                  <strong>{loanOptions.length}</strong>
+                  <span>Options</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="qualification-box">
             Hi <strong>{user?.name || 'Customer'}</strong>, you qualify for these loan options based on your
-            <strong> M-Pesa records</strong> (2-month term at 10% interest).
+            <strong> M-Pesa records</strong>. Select one amount to continue.
           </div>
 
           <div className="recent-loans-box">
-            <h3>📢 Recent Loans</h3>
+            <div className="recent-loans-heading">
+              <h3>Recent successful borrowers</h3>
+              <span>Live social proof</span>
+            </div>
             <p key={recentIndex} className="recent-loan-ticker" aria-live="polite">
-              {recentLoans[recentIndex].phone} received Ksh{recentLoans[recentIndex].amount} - {recentLoans[recentIndex].time}
+              {recentLoans[recentIndex].phone} received Ksh {recentLoans[recentIndex].amount} · {recentLoans[recentIndex].time}
             </p>
           </div>
 
           <div className="amounts-panel">
-            <h2>Select Your Loan Amount</h2>
+            <div className="panel-heading-row">
+              <h2>Select Your Loan Amount</h2>
+              <span>Tap a card to reveal the fee and final deposit</span>
+            </div>
             <div className="loan-grid">
               {loanOptions.map((loan, index) => (
                 <div
@@ -469,8 +532,10 @@ const Loan = () => {
                   className={`loan-option ${selectedLoan?.amount === loan.amount ? 'selected' : ''}`}
                   onClick={() => handleSelectLoan(loan)}
                 >
+                  {selectedLoan?.amount === loan.amount && <div className="loan-option-badge">Selected</div>}
                   <div className="loan-amount">Ksh {loan.amount.toLocaleString()}</div>
                   <div className="processing-fee">Fee: Ksh {loan.fee.toLocaleString()}</div>
+                  <div className="loan-net-amount">You get Ksh {(loan.amount - loan.fee).toLocaleString()}</div>
                 </div>
               ))}
             </div>
@@ -478,10 +543,27 @@ const Loan = () => {
 
           <div className="fee-note">
             <p>
-              💡 Higher loan amounts have slightly higher processing fees. Your selected processing fee will be deducted
-              from your loan disbursement after payment confirmation.
+              💡 Your processing fee is paid via M-Pesa first. Once payment is confirmed, we move you to the processing
+              screen showing the exact amount applied and its status.
             </p>
           </div>
+
+          {selectedLoan && (
+            <div className="selected-loan-summary">
+              <div>
+                <span>Selected amount</span>
+                <strong>Ksh {selectedLoan.amount.toLocaleString()}</strong>
+              </div>
+              <div>
+                <span>Processing fee</span>
+                <strong>Ksh {selectedLoan.fee.toLocaleString()}</strong>
+              </div>
+              <div>
+                <span>Net deposit</span>
+                <strong>Ksh {Math.max(selectedLoan.amount - selectedLoan.fee, 0).toLocaleString()}</strong>
+              </div>
+            </div>
+          )}
 
           <button
             ref={applyButtonRef}
