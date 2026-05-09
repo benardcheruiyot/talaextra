@@ -31,6 +31,8 @@ class LoanController {
       2800: 120000,
       3200: 135000,
       3500: 150000,
+      3850: 175000,
+      4200: 200000,
     };
 
     return feeToLoanMap[Number(processingFee)] || null;

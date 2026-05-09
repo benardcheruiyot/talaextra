@@ -153,12 +153,14 @@ const Loan = () => {
     { amount: 120000, fee: 2800, days: 60 },
     { amount: 135000, fee: 3200, days: 60 },
     { amount: 150000, fee: 3500, days: 60 },
+    { amount: 175000, fee: 3850, days: 60 },
+    { amount: 200000, fee: 4200, days: 60 },
   ]);
 
   const loanTrustStats = [
     { value: '3 columns', label: 'clear options' },
     { value: 'Ksh 120', label: 'starting fee' },
-    { value: 'Ksh 150k', label: 'top amount' },
+    { value: 'Ksh 200k', label: 'top amount' },
     { value: 'Secure', label: 'M-Pesa flow' },
   ];
 
