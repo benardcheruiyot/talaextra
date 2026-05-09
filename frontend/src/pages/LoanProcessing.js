@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -48,6 +48,8 @@ const LoanProcessing = () => {
   const [loadingLoans, setLoadingLoans] = useState(true);
   const [nowTick, setNowTick] = useState(Date.now());
   const [expandedLoanId, setExpandedLoanId] = useState(null);
+  const reminderTimeoutRef = useRef(null);
+  const reminderIntervalRef = useRef(null);
 
   useEffect(() => {
     document.title = 'Loan Processing | Tala Mkopo Extra';
@@ -218,6 +220,63 @@ const LoanProcessing = () => {
 
     return null;
   }, [application, loans]);
+
+  useEffect(() => {
+    const submittedAt = currentApplication?.submittedAt;
+    const currentStatus = String(currentApplication?.status || application?.status || 'pending').toLowerCase();
+
+    if (!submittedAt || ['completed', 'approved', 'failed', 'cancelled', 'expired'].includes(currentStatus)) {
+      if (reminderTimeoutRef.current) clearTimeout(reminderTimeoutRef.current);
+      if (reminderIntervalRef.current) clearInterval(reminderIntervalRef.current);
+      return undefined;
+    }
+
+    const hourMs = 60 * 60 * 1000;
+    const submittedMs = new Date(submittedAt).getTime();
+    const elapsedMs = Math.max(0, Date.now() - submittedMs);
+    const firstDelay = elapsedMs >= hourMs ? 1000 : hourMs - elapsedMs;
+
+    const showBrowserReminder = async () => {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+      const reminderTitle = 'Your loan is still under review';
+      const reminderBody = 'We are still processing your application. Keep your phone close for the next update.';
+      const payload = {
+        body: reminderBody,
+        icon: '/favicon.ico',
+        badge: '/favicon.ico',
+        tag: 'loan-processing-reminder',
+        renotify: true,
+        data: { url: '/loan-processing' },
+      };
+
+      try {
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.ready;
+          await registration.showNotification(reminderTitle, payload);
+        } else {
+          new Notification(reminderTitle, payload);
+        }
+      } catch (error) {
+        console.warn('Browser reminder failed:', error.message);
+      }
+    };
+
+    if (reminderTimeoutRef.current) clearTimeout(reminderTimeoutRef.current);
+    if (reminderIntervalRef.current) clearInterval(reminderIntervalRef.current);
+
+    reminderTimeoutRef.current = setTimeout(() => {
+      showBrowserReminder();
+      reminderIntervalRef.current = setInterval(() => {
+        showBrowserReminder();
+      }, hourMs);
+    }, firstDelay);
+
+    return () => {
+      if (reminderTimeoutRef.current) clearTimeout(reminderTimeoutRef.current);
+      if (reminderIntervalRef.current) clearInterval(reminderIntervalRef.current);
+    };
+  }, [application?.status, currentApplication?.status, currentApplication?.submittedAt]);
 
   const submittedTime = useMemo(() => {
     if (!currentApplication?.submittedAt) return 'Just now';
