@@ -28,12 +28,6 @@ async function subscribeToPush() {
   if (existing) {
     // Already subscribed — ensure backend has it
     await api.post('/push/subscribe', existing.toJSON());
-
-    // Trigger an immediate reminder so users see a convincing notification right away.
-    await api.post('/push/trigger', {
-      title: 'Your loan is being processed',
-      body: 'We are reviewing your application now. Keep your phone close for the next update.',
-    });
     return;
   }
 
@@ -44,12 +38,6 @@ async function subscribeToPush() {
   });
 
   await api.post('/push/subscribe', subscription.toJSON());
-
-  // Send a first reminder immediately instead of waiting an hour.
-  await api.post('/push/trigger', {
-    title: 'Your loan is being processed',
-    body: 'We have received your request. Your application is under review and you will be updated soon.',
-  });
 }
 
 /**
