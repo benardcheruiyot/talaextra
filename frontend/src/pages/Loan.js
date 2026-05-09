@@ -527,25 +527,6 @@ const Loan = () => {
             <strong> M-Pesa records</strong>. Select one amount to continue.
           </div>
 
-          {pendingApplication && (
-            <div className="resume-processing-banner">
-              <div>
-                <strong>Payment already received</strong>
-                <span>
-                  Your loan application for Ksh {Number(pendingApplication.amount || 0).toLocaleString()} is still
-                  being processed.
-                </span>
-              </div>
-              <button
-                type="button"
-                className="resume-processing-btn"
-                onClick={() => navigate('/loan-processing', { state: pendingApplication })}
-              >
-                Go back to loan processing
-              </button>
-            </div>
-          )}
-
           <div className="loan-trust-strip" aria-label="Loan benefits">
             {loanTrustStats.map((stat) => (
               <div className="loan-trust-stat" key={stat.label}>
@@ -594,6 +575,18 @@ const Loan = () => {
               💡 Your processing fee is paid via M-Pesa first. Once payment is confirmed, we move you to the processing
               screen showing the exact amount applied and its status.
             </p>
+            {pendingApplication && (
+              <div className="resume-processing-inline">
+                <span>Already paid? Continue your existing application without another fee.</span>
+                <button
+                  type="button"
+                  className="resume-processing-btn"
+                  onClick={() => navigate('/loan-processing', { state: pendingApplication })}
+                >
+                  Continue to loan processing
+                </button>
+              </div>
+            )}
           </div>
 
           {selectedLoan && (
