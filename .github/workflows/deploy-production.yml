@@ -18,6 +18,8 @@ jobs:
     env:
       NODE_VERSION: 20
       PM2_APP_NAME: ${{ vars.PM2_APP_NAME }}
+      BACKEND_PORT: 5001
+      APP_DOMAIN: extracash.mkopaji.com
 
     steps:
       - name: Checkout
@@ -62,25 +64,95 @@ jobs:
             APP_ROOT="${{ secrets.DEPLOY_PATH }}"
             BACKEND_DIR="$APP_ROOT/backend"
             APP_NAME="${PM2_APP_NAME:-extracash-backend}"
+            PORT="${BACKEND_PORT:-5001}"
 
             cat > "$BACKEND_DIR/.env" <<'EOF'
             ${{ secrets.BACKEND_ENV }}
             EOF
 
+            # Avoid clashes with other apps already using port 5000 on shared VPS.
+            sed -i '/^PORT=/d' "$BACKEND_DIR/.env"
+            echo "PORT=$PORT" >> "$BACKEND_DIR/.env"
+
             cd "$BACKEND_DIR"
             npm ci --omit=dev
 
             if pm2 list | grep -q "$APP_NAME"; then
-              pm2 reload "$APP_NAME" --update-env
+              PORT="$PORT" pm2 reload "$APP_NAME" --update-env
             else
-              pm2 start src/server.js --name "$APP_NAME"
+              PORT="$PORT" pm2 start src/server.js --name "$APP_NAME"
             fi
 
             pm2 save
 
-            if ! curl -fsS http://127.0.0.1:5000/api/health >/dev/null; then
+            if ! curl -fsS "http://127.0.0.1:$PORT/api/health" >/dev/null; then
               echo "Backend health check failed after deployment"
               pm2 status
               pm2 logs "$APP_NAME" --lines 80 --nostream || true
               exit 1
             fi
+
+      - name: Configure nginx and TLS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            set -e
+
+            APP_ROOT="${{ secrets.DEPLOY_PATH }}"
+            DOMAIN="${APP_DOMAIN:-extracash.mkopaji.com}"
+            PORT="${BACKEND_PORT:-5001}"
+            FRONTEND_BUILD="$APP_ROOT/frontend/build"
+            NGINX_CONF="/etc/nginx/sites-available/$DOMAIN.conf"
+            NGINX_ENABLED="/etc/nginx/sites-enabled/$DOMAIN.conf"
+
+            sudo tee "$NGINX_CONF" >/dev/null <<EOF
+            server {
+              listen 80;
+              listen [::]:80;
+              server_name $DOMAIN;
+
+              root $FRONTEND_BUILD;
+              index index.html;
+
+              location /api/ {
+                proxy_pass http://127.0.0.1:$PORT;
+                proxy_http_version 1.1;
+                proxy_set_header Host \$host;
+                proxy_set_header X-Real-IP \$remote_addr;
+                proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto \$scheme;
+              }
+
+              location / {
+                try_files \$uri \$uri/ /index.html;
+              }
+            }
+            EOF
+
+            sudo ln -sfn "$NGINX_CONF" "$NGINX_ENABLED"
+            sudo nginx -t
+            sudo systemctl reload nginx
+
+            CERT_FILE="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
+            if [ ! -f "$CERT_FILE" ] && command -v certbot >/dev/null 2>&1; then
+              sudo certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect || true
+              sudo nginx -t
+              sudo systemctl reload nginx
+            fi
+
+      - name: Verify public domain
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            set -e
+            DOMAIN="${APP_DOMAIN:-extracash.mkopaji.com}"
+            curl -fsS "http://$DOMAIN" >/dev/null
+            curl -k -fsS "https://$DOMAIN" >/dev/null
