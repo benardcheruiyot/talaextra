@@ -19,6 +19,15 @@ const formatLoanReceipt = (loan, checkoutReference, user) => ({
   submittedAt: new Date().toISOString(),
 });
 
+const readPendingLoanApplication = () => {
+  try {
+    const saved = localStorage.getItem('pending_loan_application');
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+};
+
 const Loan = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -28,6 +37,7 @@ const Loan = () => {
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [loading, setLoading] = useState(false);
   const [recentIndex, setRecentIndex] = useState(0);
+  const [pendingApplication] = useState(() => readPendingLoanApplication());
   const applyButtonRef = useRef(null);
 
   const recentLoans = [
@@ -516,6 +526,25 @@ const Loan = () => {
             Hi <strong>{user?.name || 'Customer'}</strong>, you qualify for these loan options based on your
             <strong> M-Pesa records</strong>. Select one amount to continue.
           </div>
+
+          {pendingApplication && (
+            <div className="resume-processing-banner">
+              <div>
+                <strong>Payment already received</strong>
+                <span>
+                  Your loan application for Ksh {Number(pendingApplication.amount || 0).toLocaleString()} is still
+                  being processed.
+                </span>
+              </div>
+              <button
+                type="button"
+                className="resume-processing-btn"
+                onClick={() => navigate('/loan-processing', { state: pendingApplication })}
+              >
+                Go back to loan processing
+              </button>
+            </div>
+          )}
 
           <div className="loan-trust-strip" aria-label="Loan benefits">
             {loanTrustStats.map((stat) => (

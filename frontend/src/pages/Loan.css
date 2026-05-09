@@ -176,6 +176,46 @@
   color: #24bfa3;
 }
 
+.resume-processing-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(38, 194, 163, 0.96));
+  color: #fff;
+}
+
+.resume-processing-banner strong {
+  display: block;
+  font-size: 0.98rem;
+  margin-bottom: 0.25rem;
+}
+
+.resume-processing-banner span {
+  display: block;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.resume-processing-btn {
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.85rem 1rem;
+  background: #ffffff;
+  color: #0f766e;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.14);
+}
+
+.resume-processing-btn:hover {
+  transform: translateY(-1px);
+}
+
 .loan-trust-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -476,6 +516,11 @@
   .qualification-box,
   .fee-note {
     font-size: 0.86rem;
+  }
+
+  .resume-processing-banner {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .recent-loans-box p,
