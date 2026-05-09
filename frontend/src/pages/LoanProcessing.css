@@ -60,6 +60,23 @@
   line-height: 1.6;
 }
 
+.loan-processing-deadline {
+  margin: 0 auto 1rem;
+  max-width: 54ch;
+  text-align: center;
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 0.94rem;
+  line-height: 1.5;
+}
+
+.loan-processing-deadline strong {
+  color: #7c2d12;
+}
+
 .loan-processing-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -125,6 +142,8 @@
 
 .loan-processing-timeline-dot.active {
   background: #f59e0b;
+  box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55);
+  animation: reviewPulse 1.4s ease-out infinite;
 }
 
 .loan-processing-timeline-dot.pending {
@@ -199,6 +218,23 @@
   color: #1f2937;
 }
 
+@keyframes reviewPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55);
+  }
+
+  70% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+}
+
 @media (max-width: 960px) {
   .loan-processing-shell {
     width: min(100% - 1rem, 760px);
@@ -217,6 +253,10 @@
 
   .loan-processing-intro {
     font-size: 0.95rem;
+  }
+
+  .loan-processing-deadline {
+    font-size: 0.88rem;
   }
 
   .loan-processing-timeline-item {

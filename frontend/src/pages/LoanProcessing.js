@@ -62,7 +62,7 @@ const LoanProcessing = () => {
     {
       id: 3,
       title: 'Disbursement',
-      description: 'Once approved, funds will be sent directly to your M-Pesa account.',
+      description: 'Once approved, funds will be sent directly to your M-Pesa account within 48 hours.',
       status: 'pending',
     },
     {
@@ -87,6 +87,10 @@ const LoanProcessing = () => {
           <p className="loan-processing-intro">
             Thank you for applying. We have confirmed your processing fee and your request is now in review.
           </p>
+
+          <div className="loan-processing-deadline" role="status" aria-live="polite">
+            <strong>Expected disbursement:</strong> within 48 hours after payment confirmation.
+          </div>
 
           <div className="loan-processing-summary-grid">
             <div>
