@@ -59,7 +59,7 @@ const Home = () => {
             </svg>
             Special Offer
           </div>
-          <h1>Get Up To Ksh 200,000</h1>
+          <h1>Get Up To Ksh 150,000</h1>
           <p>Low 7.5% interest rate for qualified borrowers</p>
         </div>
 
