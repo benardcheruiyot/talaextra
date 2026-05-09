@@ -77,7 +77,7 @@ jobs:
             cd "$BACKEND_DIR"
             npm ci --omit=dev
 
-            if pm2 list | grep -q "$APP_NAME"; then
+            if pm2 describe "$APP_NAME" >/dev/null 2>&1; then
               PORT="$PORT" pm2 reload "$APP_NAME" --update-env
             else
               PORT="$PORT" pm2 start src/server.js --name "$APP_NAME"
