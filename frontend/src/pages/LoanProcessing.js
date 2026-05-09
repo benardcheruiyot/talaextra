@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { loanService } from '../services/api';
 import { formatCurrency } from '../utils/helpers';
 import './LoanProcessing.css';
 
@@ -43,30 +44,100 @@ const LoanProcessing = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [application, setApplication] = useState(() => readPendingApplication(location.state));
+  const [loans, setLoans] = useState([]);
+  const [loadingLoans, setLoadingLoans] = useState(true);
+  const [nowTick, setNowTick] = useState(Date.now());
 
   useEffect(() => {
     document.title = 'Loan Processing | Tala Mkopo Extra';
   }, []);
 
   useEffect(() => {
-    if (!application) {
+    if (!application && !loadingLoans && loans.length === 0) {
       navigate('/loan', { replace: true });
     }
-  }, [application, navigate]);
+  }, [application, loadingLoans, loans.length, navigate]);
+
+  useEffect(() => {
+    const fetchLoans = async () => {
+      try {
+        const data = await loanService.getUserLoans();
+        setLoans(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Failed to fetch user loans on processing page:', error);
+        setLoans([]);
+      } finally {
+        setLoadingLoans(false);
+      }
+    };
+
+    fetchLoans();
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTick(Date.now());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const getElapsedTime = (dateValue) => {
+    if (!dateValue) return 'Just now';
+    const diffMs = Math.max(0, nowTick - new Date(dateValue).getTime());
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (days > 0) return `${days}d ${hours}h ago`;
+    if (hours > 0) return `${hours}h ${minutes}m ago`;
+    if (minutes > 0) return `${minutes}m ${seconds}s ago`;
+    return `${seconds}s ago`;
+  };
+
+  const currentApplication = useMemo(() => {
+    if (application) {
+      return {
+        amount: Number(application.amount || 0),
+        fee: Number(application.fee || 0),
+        reference: application.reference || 'Pending',
+        phone: application.phone || 'Not available',
+        submittedAt: application.submittedAt || null,
+      };
+    }
+
+    if (loans.length > 0) {
+      const latestLoan = [...loans].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )[0];
+
+      return {
+        amount: Number(latestLoan.amount || 0),
+        fee: Number(latestLoan.processingFee || 0),
+        reference: latestLoan.id || 'Pending',
+        phone: 'Not available',
+        submittedAt: latestLoan.createdAt || null,
+      };
+    }
+
+    return null;
+  }, [application, loans]);
 
   const submittedTime = useMemo(() => {
-    if (!application?.submittedAt) return 'Just now';
+    if (!currentApplication?.submittedAt) return 'Just now';
     return new Intl.DateTimeFormat('en-KE', {
       dateStyle: 'medium',
       timeStyle: 'short',
-    }).format(new Date(application.submittedAt));
-  }, [application?.submittedAt]);
+    }).format(new Date(currentApplication.submittedAt));
+  }, [currentApplication?.submittedAt]);
 
-  if (!application) {
+  if (!currentApplication && loadingLoans) {
     return null;
   }
 
-  const netDeposit = Math.max(Number(application.amount || 0) - Number(application.fee || 0), 0);
+  const netDeposit = Math.max(Number(currentApplication?.amount || 0) - Number(currentApplication?.fee || 0), 0);
   const timelineSteps = [
     {
       id: 1,
@@ -116,11 +187,11 @@ const LoanProcessing = () => {
           <div className="loan-processing-summary-grid">
             <div>
               <span>Requested amount</span>
-              <strong>{formatCurrency(application.amount)}</strong>
+              <strong>{formatCurrency(currentApplication?.amount || 0)}</strong>
             </div>
             <div>
               <span>Fee paid</span>
-              <strong>{formatCurrency(application.fee)}</strong>
+              <strong>{formatCurrency(currentApplication?.fee || 0)}</strong>
             </div>
             <div>
               <span>Expected deposit</span>
@@ -128,7 +199,7 @@ const LoanProcessing = () => {
             </div>
             <div>
               <span>Reference</span>
-              <strong>{application.reference || 'Pending'}</strong>
+              <strong>{currentApplication?.reference || 'Pending'}</strong>
             </div>
           </div>
 
@@ -151,7 +222,38 @@ const LoanProcessing = () => {
 
           <section className="loan-processing-note">
             <strong>Submitted:</strong> {submittedTime}
-            <span>Phone: {application.phone || 'Not available'}</span>
+            <span>Phone: {currentApplication?.phone || 'Not available'}</span>
+          </section>
+
+          <section className="loan-processing-history">
+            <div className="loan-processing-history-head">
+              <h3>All your loan applications</h3>
+              <span>{loans.length} total</span>
+            </div>
+
+            {loadingLoans ? (
+              <p className="loan-processing-history-empty">Loading your applications...</p>
+            ) : loans.length === 0 ? (
+              <p className="loan-processing-history-empty">No previous applications found yet.</p>
+            ) : (
+              <div className="loan-processing-history-list">
+                {loans.map((loan) => (
+                  <article key={loan.id} className="loan-processing-history-item">
+                    <div className="loan-processing-history-top">
+                      <strong>{formatCurrency(loan.amount)}</strong>
+                      <span className={`loan-processing-history-status ${loan.status || 'pending'}`}>
+                        {(loan.status || 'pending').toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="loan-processing-history-meta">
+                      <span>Fee: {formatCurrency(loan.processingFee || 0)}</span>
+                      <span>Applied: {new Date(loan.createdAt).toLocaleString('en-KE')}</span>
+                      <span>Elapsed: {getElapsedTime(loan.createdAt)}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </section>
 
           <div className="loan-processing-actions">

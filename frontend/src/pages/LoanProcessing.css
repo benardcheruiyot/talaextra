@@ -191,6 +191,99 @@
   color: #0f172a;
 }
 
+.loan-processing-history {
+  margin-top: 1rem;
+  border-radius: 16px;
+  border: 1px solid #dbe6f3;
+  background: #f8fbff;
+  padding: 0.85rem;
+}
+
+.loan-processing-history-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.loan-processing-history-head h3 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 1rem;
+}
+
+.loan-processing-history-head span {
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.loan-processing-history-empty {
+  margin: 0;
+  color: #64748b;
+}
+
+.loan-processing-history-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.loan-processing-history-item {
+  border: 1px solid #dbe6f3;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.65rem 0.75rem;
+}
+
+.loan-processing-history-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.loan-processing-history-top strong {
+  color: #0f172a;
+}
+
+.loan-processing-history-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.loan-processing-history-status.pending,
+.loan-processing-history-status.initiated {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.loan-processing-history-status.approved,
+.loan-processing-history-status.completed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.loan-processing-history-status.failed,
+.loan-processing-history-status.cancelled,
+.loan-processing-history-status.expired {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.loan-processing-history-meta {
+  display: grid;
+  gap: 0.2rem;
+  color: #475569;
+  font-size: 0.84rem;
+}
+
 .loan-processing-actions {
   display: flex;
   gap: 0.75rem;
@@ -276,6 +369,12 @@
 
   .loan-processing-timeline-copy h2 {
     font-size: 0.95rem;
+  }
+
+  .loan-processing-history-head,
+  .loan-processing-history-top {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .loan-processing-timeline-copy p {
