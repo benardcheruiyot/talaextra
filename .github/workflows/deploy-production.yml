@@ -34,7 +34,7 @@ jobs:
 
       - name: Install and build frontend
         run: |
-          npm --prefix frontend ci
+          npm --prefix frontend install
           npm --prefix frontend run build
 
       - name: Sync files to server
