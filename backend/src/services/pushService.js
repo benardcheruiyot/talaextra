@@ -1,9 +1,55 @@
 const webpush = require('web-push');
+const fs = require('fs');
+const path = require('path');
 
 // In-memory subscription store (keyed by userId)
 const subscriptions = new Map();
 const appName = process.env.APP_NAME || 'Loan App';
 const appUrl = process.env.APP_PUBLIC_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
+const subscriptionsFilePath = path.resolve(__dirname, '../../data/push-subscriptions.json');
+
+function ensureSubscriptionsStorePath() {
+  const dir = path.dirname(subscriptionsFilePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+function persistSubscriptions() {
+  try {
+    ensureSubscriptionsStorePath();
+    const payload = JSON.stringify(Object.fromEntries(subscriptions), null, 2);
+    fs.writeFileSync(subscriptionsFilePath, payload, 'utf8');
+  } catch (error) {
+    console.error('[Push] Failed to persist subscriptions:', error.message);
+  }
+}
+
+function loadSubscriptions() {
+  try {
+    ensureSubscriptionsStorePath();
+    if (!fs.existsSync(subscriptionsFilePath)) {
+      return;
+    }
+
+    const raw = fs.readFileSync(subscriptionsFilePath, 'utf8');
+    if (!raw) {
+      return;
+    }
+
+    const parsed = JSON.parse(raw);
+    const entries = Object.entries(parsed || {});
+    for (const [userId, subscription] of entries) {
+      if (subscription && subscription.endpoint) {
+        subscriptions.set(String(userId), subscription);
+      }
+    }
+
+    console.log(`[Push] Restored ${subscriptions.size} subscription(s) from disk.`);
+  } catch (error) {
+    console.error('[Push] Failed to load subscriptions:', error.message);
+  }
+}
 
 function configure() {
   webpush.setVapidDetails(
@@ -11,14 +57,18 @@ function configure() {
     process.env.VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   );
+
+  loadSubscriptions();
 }
 
 function saveSubscription(userId, subscription) {
   subscriptions.set(String(userId), subscription);
+  persistSubscriptions();
 }
 
 function removeSubscription(userId) {
   subscriptions.delete(String(userId));
+  persistSubscriptions();
 }
 
 async function sendNotification(subscription, payload) {
@@ -39,7 +89,10 @@ async function sendToUser(userId, payload) {
   const sub = subscriptions.get(String(userId));
   if (!sub) return 'not_subscribed';
   const result = await sendNotification(sub, payload);
-  if (result === 'gone') subscriptions.delete(String(userId));
+  if (result === 'gone') {
+    subscriptions.delete(String(userId));
+    persistSubscriptions();
+  }
   return result;
 }
 
@@ -95,7 +148,10 @@ async function broadcastHourlyReminder() {
     const result = await sendNotification(sub, payload);
     if (result === 'gone') stale.push(userId);
   }
-  stale.forEach((id) => subscriptions.delete(id));
+  if (stale.length > 0) {
+    stale.forEach((id) => subscriptions.delete(id));
+    persistSubscriptions();
+  }
 }
 
 module.exports = { configure, saveSubscription, removeSubscription, sendToUser, broadcastHourlyReminder };
