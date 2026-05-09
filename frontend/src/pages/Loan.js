@@ -319,8 +319,8 @@ const Loan = () => {
 
       let attempts = 0;
       let checkoutReference = result.reference;
-      const pollIntervalMs = 1200;
-      const maxAttempts = 75;
+      const pollIntervalMs = 900;
+      const maxAttempts = 120;
       const scheduleNextPoll = (delay = pollIntervalMs) => {
         paymentPollRef.current = setTimeout(runPoll, delay);
       };
@@ -498,8 +498,8 @@ const Loan = () => {
         }
       };
 
-      // Start quickly, then continue with sequential polling.
-      scheduleNextPoll(500);
+      // Start almost immediately, then continue with sequential polling.
+      scheduleNextPoll(150);
     } catch (error) {
       Swal.fire({
         icon: 'error',

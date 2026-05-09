@@ -477,7 +477,7 @@ class MpesaService {
             Authorization: `Bearer ${accessToken}`,
           },
           body: payload,
-          timeout: 4000,
+          timeout: 7000,
         }
       );
 
@@ -515,6 +515,11 @@ class MpesaService {
       };
     } catch (error) {
       console.error(`[M-Pesa Status] Attempt ${attempt} failed:`, error.message);
+
+      if (attempt < 2 && (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || !error.response)) {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return this.checkTransactionStatus(checkoutRequestId, attempt + 1);
+      }
 
       // Return a pending state when status query fails, to avoid false failures
       // The callback mechanism may still deliver the result

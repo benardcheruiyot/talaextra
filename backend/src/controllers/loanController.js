@@ -6,7 +6,7 @@ const mpesaService = require('../services/mpesaService');
 const { AppError } = require('../middleware/errorHandler');
 const pushService = require('../services/pushService');
 
-const STATUS_QUERY_MIN_INTERVAL_MS = 3500;
+const STATUS_QUERY_MIN_INTERVAL_MS = 1200;
 
 class LoanController {
   constructor() {
