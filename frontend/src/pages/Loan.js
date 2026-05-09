@@ -296,12 +296,13 @@ const Loan = () => {
 
       let attempts = 0;
       let checkoutReference = result.reference;
-      const maxAttempts = 20;
+      const pollIntervalMs = 2000;
+      const maxAttempts = 45;
       paymentPollRef.current = setInterval(async () => {
         attempts++;
 
         if (Swal.isVisible()) {
-          const remainingSeconds = Math.max(0, (maxAttempts - attempts) * 3);
+          const remainingSeconds = Math.max(0, Math.ceil(((maxAttempts - attempts) * pollIntervalMs) / 1000));
           Swal.update({
             html: `
               <div class="stk-modal-content">
@@ -459,7 +460,7 @@ const Loan = () => {
             if (isMountedRef.current) setLoading(false);
           }
         }
-      }, 3000);
+      }, pollIntervalMs);
     } catch (error) {
       Swal.fire({
         icon: 'error',

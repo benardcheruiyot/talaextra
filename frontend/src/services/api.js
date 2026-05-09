@@ -92,7 +92,17 @@ export const loanService = {
   },
 
   checkPaymentStatus: async (checkoutId) => {
-    const response = await api.get(`/check_status?checkoutId=${checkoutId}`);
+    const response = await api.get('/check_status', {
+      params: {
+        checkoutId,
+        t: Date.now(),
+      },
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
+      },
+    });
     return response.data;
   },
 };
