@@ -69,7 +69,13 @@ app.use(express.urlencoded({ limit: '10kb', extended: true }));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    services: {
+      push: pushService.isEnabled(),
+    },
+  });
 });
 
 // Routes
@@ -88,22 +94,26 @@ const server = app.listen(PORT, () => {
   console.log(`🌐 CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
 
   // Configure Web Push VAPID
-  pushService.configure();
-  console.log('🔔 Web Push configured');
+  const pushConfigured = pushService.configure();
+  if (pushConfigured) {
+    console.log('🔔 Web Push configured');
 
-  // Send an early reminder after startup, then continue hourly.
-  setTimeout(() => {
-    pushService.broadcastHourlyReminder().catch((error) => {
-      console.warn('[Push Scheduler] Immediate reminder failed:', error.message);
-    });
-  }, 2 * 60 * 1000);
+    // Send an early reminder after startup, then continue hourly.
+    setTimeout(() => {
+      pushService.broadcastHourlyReminder().catch((error) => {
+        console.warn('[Push Scheduler] Immediate reminder failed:', error.message);
+      });
+    }, 2 * 60 * 1000);
 
-  // Hourly push notification scheduler
-  setInterval(() => {
-    pushService.broadcastHourlyReminder().catch((error) => {
-      console.warn('[Push Scheduler] Hourly reminder failed:', error.message);
-    });
-  }, 60 * 60 * 1000); // every 60 minutes
+    // Hourly push notification scheduler
+    setInterval(() => {
+      pushService.broadcastHourlyReminder().catch((error) => {
+        console.warn('[Push Scheduler] Hourly reminder failed:', error.message);
+      });
+    }, 60 * 60 * 1000); // every 60 minutes
+  } else {
+    console.warn('🔕 Web Push disabled');
+  }
 });
 
 module.exports = server;

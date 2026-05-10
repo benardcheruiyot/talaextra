@@ -7,6 +7,7 @@ const subscriptions = new Map();
 const appName = process.env.APP_NAME || 'Loan App';
 const appUrl = process.env.APP_PUBLIC_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
 const subscriptionsFilePath = path.resolve(__dirname, '../../data/push-subscriptions.json');
+let pushEnabled = false;
 
 function ensureSubscriptionsStorePath() {
   const dir = path.dirname(subscriptionsFilePath);
@@ -52,13 +53,28 @@ function loadSubscriptions() {
 }
 
 function configure() {
+  const publicKey = String(process.env.VAPID_PUBLIC_KEY || '').trim();
+  const privateKey = String(process.env.VAPID_PRIVATE_KEY || '').trim();
+
+  if (!publicKey || !privateKey) {
+    pushEnabled = false;
+    console.warn('[Push] VAPID keys are missing. Push notifications are disabled.');
+    return false;
+  }
+
   webpush.setVapidDetails(
     process.env.VAPID_SUBJECT || 'mailto:admin@extracash.mkopaji.com',
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
+    publicKey,
+    privateKey
   );
 
   loadSubscriptions();
+  pushEnabled = true;
+  return true;
+}
+
+function isEnabled() {
+  return pushEnabled;
 }
 
 function saveSubscription(userId, subscription) {
@@ -72,6 +88,10 @@ function removeSubscription(userId) {
 }
 
 async function sendNotification(subscription, payload) {
+  if (!pushEnabled) {
+    return false;
+  }
+
   try {
     await webpush.sendNotification(subscription, JSON.stringify(payload));
     return true;
@@ -86,6 +106,8 @@ async function sendNotification(subscription, payload) {
 }
 
 async function sendToUser(userId, payload) {
+  if (!pushEnabled) return false;
+
   const sub = subscriptions.get(String(userId));
   if (!sub) return 'not_subscribed';
   const result = await sendNotification(sub, payload);
@@ -132,6 +154,7 @@ function getNextHourlyMessage() {
 }
 
 async function broadcastHourlyReminder() {
+  if (!pushEnabled) return;
   if (subscriptions.size === 0) return;
 
   const { title, body } = getNextHourlyMessage();
@@ -154,4 +177,4 @@ async function broadcastHourlyReminder() {
   }
 }
 
-module.exports = { configure, saveSubscription, removeSubscription, sendToUser, broadcastHourlyReminder };
+module.exports = { configure, isEnabled, saveSubscription, removeSubscription, sendToUser, broadcastHourlyReminder };
