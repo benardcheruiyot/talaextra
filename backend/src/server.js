@@ -1,4 +1,5 @@
 require('dotenv').config();
+console.log('ALLOWED_ORIGINS:', process.env.ALLOWED_ORIGINS);
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
