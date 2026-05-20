@@ -19,4 +19,29 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
-module.exports = corsOptions;
+const allowedBase = process.env.ALLOWED_BASE_DOMAIN || '';
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
+module.exports = {
+  credentials: true,
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    try {
+      const url = new URL(origin);
+      if (
+        allowedBase &&
+        url.protocol === 'https:' &&
+        (url.hostname === allowedBase || url.hostname.endsWith('.' + allowedBase))
+      ) {
+        return callback(null, true);
+      }
+    } catch {}
+    console.warn(`[CORS BLOCKED] Origin: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
+  },
+  optionsSuccessStatus: 200,
+};
