@@ -28,20 +28,8 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
 module.exports = {
   credentials: true,
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    try {
-      const url = new URL(origin);
-      if (
-        allowedBase &&
-        url.protocol === 'https:' &&
-        (url.hostname === allowedBase || url.hostname.endsWith('.' + allowedBase))
-      ) {
-        return callback(null, true);
-      }
-    } catch {}
-    console.warn(`[CORS BLOCKED] Origin: ${origin}`);
-    callback(new Error('Not allowed by CORS'));
+    console.log(`[CORS DEBUG] Incoming request Origin: ${origin}`);
+    callback(null, true); // Allow all origins for debugging
   },
   optionsSuccessStatus: 200,
 };
