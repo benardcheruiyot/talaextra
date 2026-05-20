@@ -19,15 +19,13 @@ app.use(helmet());
 
 // CORS configuration (Best Practice + Enhanced Logging)
 
-const allowedOriginsRaw = (process.env.ALLOWED_ORIGINS || '')
-  .split(',')
-  .map(origin => origin.trim())
-  .filter(Boolean);
 
-// Support wildcard subdomains: e.g., add 'https://*.extracash.mkopaji.com' to ALLOWED_ORIGINS
-const allowedWildcardDomains = allowedOriginsRaw.filter(origin => origin.startsWith('https://*.'));
-const allowedOrigins = allowedOriginsRaw.filter(origin => !origin.startsWith('https://*.'));
-
+// Best-practice CORS: allow all subdomains of extracash.mkopaji.com
+const allowedBase = 'extracash.mkopaji.com';
+const allowedOrigins = [
+  'https://extracash.mkopaji.com',
+  'https://www.extracash.mkopaji.com',
+];
 if (!isProduction) {
   allowedOrigins.push('http://localhost:3000', 'http://127.0.0.1:3000');
 }
@@ -41,33 +39,30 @@ app.use((req, res, next) => {
 });
 
 
+
 app.use(
   cors({
     credentials: true,
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
 
-      // Exact match
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+      // Allow exact matches
+      if (allowedOrigins.includes(origin)) return callback(null, true);
 
-      // Wildcard subdomain match
-      const matched = allowedWildcardDomains.some(wildcard => {
-        // e.g., wildcard = 'https://*.extracash.mkopaji.com'
-        const base = wildcard.replace('https://*.', '');
-        try {
-          const url = new URL(origin);
-          return url.protocol === 'https:' && url.hostname.endsWith('.' + base);
-        } catch {
-          return false;
+      // Allow any subdomain of extracash.mkopaji.com
+      try {
+        const url = new URL(origin);
+        if (
+          url.protocol === 'https:' &&
+          url.hostname.endsWith('.' + allowedBase)
+        ) {
+          return callback(null, true);
         }
-      });
-      if (matched) {
-        return callback(null, true);
+      } catch (e) {
+        // Ignore parse errors
       }
 
-      console.warn(`[CORS BLOCKED] Origin: ${origin} | Allowed: [${allowedOrigins.join(', ')}] | Wildcards: [${allowedWildcardDomains.join(', ')}]`);
+      console.warn(`[CORS BLOCKED] Origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     },
     optionsSuccessStatus: 200,
