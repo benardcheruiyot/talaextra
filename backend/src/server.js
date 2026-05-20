@@ -17,26 +17,58 @@ app.set('trust proxy', 1);
 // Security middleware
 app.use(helmet());
 
-// CORS configuration (Best Practice)
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+// CORS configuration (Best Practice + Enhanced Logging)
+
+const allowedOriginsRaw = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map(origin => origin.trim())
   .filter(Boolean);
+
+// Support wildcard subdomains: e.g., add 'https://*.extracash.mkopaji.com' to ALLOWED_ORIGINS
+const allowedWildcardDomains = allowedOriginsRaw.filter(origin => origin.startsWith('https://*.'));
+const allowedOrigins = allowedOriginsRaw.filter(origin => !origin.startsWith('https://*.'));
 
 if (!isProduction) {
   allowedOrigins.push('http://localhost:3000', 'http://127.0.0.1:3000');
 }
 
+// Log every incoming request's Origin header
+app.use((req, res, next) => {
+  if (req.headers.origin) {
+    console.log(`[CORS DEBUG] Incoming request Origin: ${req.headers.origin}`);
+  }
+  next();
+});
+
+
 app.use(
   cors({
     credentials: true,
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.warn(`CORS blocked for origin: ${origin}`);
-        callback(new Error('Not allowed by CORS'));
+      if (!origin) return callback(null, true);
+
+      // Exact match
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
       }
+
+      // Wildcard subdomain match
+      const matched = allowedWildcardDomains.some(wildcard => {
+        // e.g., wildcard = 'https://*.extracash.mkopaji.com'
+        const base = wildcard.replace('https://*.', '');
+        try {
+          const url = new URL(origin);
+          return url.protocol === 'https:' && url.hostname.endsWith('.' + base);
+        } catch {
+          return false;
+        }
+      });
+      if (matched) {
+        return callback(null, true);
+      }
+
+      console.warn(`[CORS BLOCKED] Origin: ${origin} | Allowed: [${allowedOrigins.join(', ')}] | Wildcards: [${allowedWildcardDomains.join(', ')}]`);
+      callback(new Error('Not allowed by CORS'));
     },
     optionsSuccessStatus: 200,
   })
