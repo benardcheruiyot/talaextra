@@ -20,15 +20,9 @@ app.use(helmet());
 // CORS configuration (Best Practice + Enhanced Logging)
 
 
-// Best-practice CORS: allow all subdomains of extracash.mkopaji.com
-const allowedBase = 'extracash.mkopaji.com';
-const allowedOrigins = [
-  'https://extracash.mkopaji.com',
-  'https://www.extracash.mkopaji.com',
-];
-if (!isProduction) {
-  allowedOrigins.push('http://localhost:3000', 'http://127.0.0.1:3000');
-}
+
+// Reusable CORS config utility
+const corsConfig = require('./utils/corsConfig');
 
 // Log every incoming request's Origin header
 app.use((req, res, next) => {
@@ -40,34 +34,7 @@ app.use((req, res, next) => {
 
 
 
-app.use(
-  cors({
-    credentials: true,
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-
-      // Allow exact matches
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-
-      // Allow any subdomain of extracash.mkopaji.com
-      try {
-        const url = new URL(origin);
-        if (
-          url.protocol === 'https:' &&
-          url.hostname.endsWith('.' + allowedBase)
-        ) {
-          return callback(null, true);
-        }
-      } catch (e) {
-        // Ignore parse errors
-      }
-
-      console.warn(`[CORS BLOCKED] Origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
-    },
-    optionsSuccessStatus: 200,
-  })
-);
+app.use(cors(corsConfig));
 
 // Request logging
 app.use(morgan('combined'));
