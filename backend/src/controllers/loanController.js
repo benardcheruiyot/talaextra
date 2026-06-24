@@ -7,6 +7,7 @@ const { AppError } = require('../middleware/errorHandler');
 const pushService = require('../services/pushService');
 
 const STATUS_QUERY_MIN_INTERVAL_MS = 1200;
+const TERMINAL_STATUS_GRACE_MS = 25000;
 
 class LoanController {
   constructor() {
@@ -272,7 +273,27 @@ class LoanController {
 
       const refreshedTransaction = await MpesaTransaction.findByCheckoutRequestId(checkoutId);
       const fallbackStatus = refreshedTransaction?.status || existingTransaction?.status || 'pending';
-      const normalizedStatus = result.status || fallbackStatus;
+      let normalizedStatus = result.status || fallbackStatus;
+
+      const queryTerminalStatuses = ['failed', 'cancelled', 'expired'];
+      const statusSourceTransaction = refreshedTransaction || existingTransaction;
+      const transactionAgeMs = statusSourceTransaction?.createdAt
+        ? Date.now() - new Date(statusSourceTransaction.createdAt).getTime()
+        : Number.POSITIVE_INFINITY;
+      const callbackConfirmed = Boolean(statusSourceTransaction?.callbackData);
+
+      // Some STK status queries can briefly return terminal states before the user finishes
+      // handset confirmation. Keep polling as pending for a short grace window unless callback-confirmed.
+      if (
+        queryTerminalStatuses.includes(normalizedStatus) &&
+        !callbackConfirmed &&
+        transactionAgeMs < TERMINAL_STATUS_GRACE_MS
+      ) {
+        console.log(
+          `[Check Status] Holding early terminal result as pending (${normalizedStatus}) at ${transactionAgeMs}ms`
+        );
+        normalizedStatus = 'pending';
+      }
 
       console.log(`[Check Status] Normalized status: ${normalizedStatus}`);
 
@@ -281,8 +302,11 @@ class LoanController {
         console.log('[Check Status] Updating transaction status...');
         await MpesaTransaction.updateByCheckoutRequestId(checkoutId, {
           status: normalizedStatus,
-          resultCode: result.resultCode || null,
-          resultDescription: result.resultDescription || null,
+          resultCode: normalizedStatus === 'pending' ? null : (result.resultCode || null),
+          resultDescription:
+            normalizedStatus === 'pending'
+              ? 'Waiting for payment confirmation...'
+              : (result.resultDescription || null),
           lastStatusQueryAt: new Date(),
         });
       } else if (normalizedStatus === 'completed') {
