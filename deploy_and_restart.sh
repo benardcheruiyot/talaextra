@@ -278,12 +278,10 @@ systemctl enable nginx
 systemctl restart nginx
 
 echo "[8/8] Issuing SSL certificate"
-if certbot certificates 2>/dev/null | grep -q "Domains:.*${DOMAIN}"; then
-	certbot_safe renew --quiet || true
-else
-	certbot_safe --nginx -d "$DOMAIN" -d "$WWW_DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirect || \
-	certbot_safe --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirect
-fi
+# Always run certbot with --nginx so TLS server blocks are restored after the
+# temporary HTTP-only nginx config written in step [7/8].
+certbot_safe --nginx -d "$DOMAIN" -d "$WWW_DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirect || \
+certbot_safe --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirect
 
 echo
 echo "Recovery complete."
