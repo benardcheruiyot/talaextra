@@ -231,9 +231,126 @@ npm test           # Run tests
 
 ### CI/CD
 
-- No GitHub Actions workflow is included by default.
-- For a new repository, add CI/CD only after setting the new domain, infrastructure, and secrets.
-- Prefer repository-specific workflow variables/secrets instead of hardcoding hostnames or paths.
+- Production deployment is automated via `.github/workflows/deploy-production.yml`.
+- Staging deployment is automated via `.github/workflows/deploy-staging.yml`.
+- Triggers:
+   - Production: push to `main` or manual `workflow_dispatch`
+   - Staging: push to `staging` or manual `workflow_dispatch`
+- Both workflows run full server recovery using `deploy_and_restart.sh`.
+
+Recommended setup:
+- Create two GitHub Environments: `production` and `staging`.
+- Store environment-specific secrets/variables in each environment with the same names.
+- This keeps staging and production isolated while reusing one workflow structure.
+
+Set these **GitHub Secrets**:
+- `VPS_HOST`: Server IP or hostname (example: `153.75.247.188`)
+- `VPS_USER`: SSH user (example: `root`)
+- `VPS_SSH_KEY`: Private key content for SSH access
+- `BACKEND_ENV_FILE`: Full backend `.env` as multiline text
+- `FRONTEND_ENV_FILE`: Full frontend `.env` as multiline text
+
+Set these **GitHub Variables** (Repository Variables):
+- `APP_DOMAIN`: Production domain (example: `extracash.mkopaji.com`)
+- `CERTBOT_EMAIL`: Email for TLS certificate registration
+- `DEPLOY_PATH`: Remote app path (example: `/var/www/talaextra`)
+- `DEPLOY_BRANCH`: Branch to deploy (default: `main`)
+- `DEPLOY_REPO`: Optional explicit Git repo URL (required if auto-detection is not suitable)
+
+For staging environment, set the same variable names but with staging values (example: `APP_DOMAIN=staging.extracash.mkopaji.com`, `DEPLOY_BRANCH=staging`, different `DEPLOY_PATH` if needed).
+
+Optional diagnostics workflow:
+- Run `.github/workflows/diagnose-production.yml` manually to inspect PM2, Nginx, ports, and health checks on the server.
+
+### One-Command CI/CD Bootstrap
+
+You can auto-configure GitHub Environments, secrets, and variables from your local machine.
+
+Prerequisites:
+- GitHub CLI installed (`gh`)
+- Authenticated session (`gh auth login`)
+- Local env files ready (`backend/.env` and `frontend/.env`)
+
+Run:
+
+```bash
+chmod +x scripts/setup_github_environments.sh
+./scripts/setup_github_environments.sh \
+   --vps-host 153.75.247.188 \
+   --vps-user root \
+   --ssh-key-file ~/.ssh/id_ed25519 \
+   --certbot-email admin@extracash.mkopaji.com \
+   --prod-domain extracash.mkopaji.com \
+   --staging-domain staging.extracash.mkopaji.com
+```
+
+Windows PowerShell:
+
+```powershell
+.\scripts\setup_github_environments.ps1 `
+   -VpsHost 153.75.247.188 `
+   -VpsUser root `
+   -SshKeyFile "$env:USERPROFILE\.ssh\id_rsa" `
+   -CertbotEmail admin@extracash.mkopaji.com `
+   -ProdDomain extracash.mkopaji.com `
+   -StagingDomain staging.extracash.mkopaji.com
+```
+
+Optional overrides:
+
+```bash
+--repo owner/repo
+--deploy-repo https://github.com/owner/repo.git
+--prod-path /var/www/talaextra
+--staging-path /var/www/talaextra-staging
+--prod-branch main
+--staging-branch staging
+--backend-staging-env-file backend/.env.staging
+--frontend-staging-env-file frontend/.env.staging
+```
+
+## 🆘 Recover From Empty Server
+
+If your server was wiped, use the root deployment script to rebuild it automatically.
+
+### What It Does
+- Installs Node.js, PM2, Nginx, Certbot, Git.
+- Clones and updates this repository.
+- Uploads your local `backend/.env` and `frontend/.env` automatically (if present).
+- Rewrites domain-dependent env values (`ALLOWED_ORIGINS`, callback URL, API URL).
+- Installs backend/frontend dependencies.
+- Builds frontend for production.
+- Starts backend with PM2.
+- Configures Nginx to serve frontend and proxy `/api` to backend.
+- Issues/renews SSL certificate.
+
+### One-Command Recovery
+
+```bash
+chmod +x deploy_and_restart.sh
+./deploy_and_restart.sh \
+   --host root@153.75.247.188 \
+   --domain extracash.mkopaji.com \
+   --email admin@extracash.mkopaji.com
+```
+
+Optional flags:
+
+```bash
+--repo https://github.com/<owner>/<repo>.git
+--branch main
+--project-dir /var/www/talaextra
+--skip-env-sync
+```
+
+### Verify Domain Recovery
+
+```bash
+chmod +x scripts/check_domain_recovery.sh
+./scripts/check_domain_recovery.sh extracash.mkopaji.com 153.75.247.188
+```
+
+If you want deployment without uploading local env files, add `--skip-env-sync`.
 
 ## 🔒 Security Considerations
 

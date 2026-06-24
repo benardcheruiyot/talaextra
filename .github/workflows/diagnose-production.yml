@@ -10,6 +10,7 @@ jobs:
 
     env:
       PM2_APP_NAME: ${{ vars.PM2_APP_NAME }}
+      APP_DOMAIN: ${{ vars.APP_DOMAIN }}
 
     steps:
       - name: Run VPS diagnostics
@@ -25,6 +26,7 @@ jobs:
             APP_NAME="${PM2_APP_NAME:-extracash-backend}"
             APP_ROOT="${{ secrets.DEPLOY_PATH }}"
             BACKEND_DIR="$APP_ROOT/backend"
+            DOMAIN="${APP_DOMAIN:-extracash.mkopaji.com}"
 
             echo "===== BASIC ====="
             date
@@ -51,8 +53,8 @@ jobs:
             sudo -n grep -RInE 'server_name|proxy_pass|root|listen 443|listen 80' /etc/nginx/sites-enabled /etc/nginx/sites-available || true
 
             echo "===== DOMAIN PROBES FROM VPS ====="
-            curl -I -m 10 http://extracash.mkopaji.com || true
-            curl -k -I -m 10 https://extracash.mkopaji.com || true
+            curl -I -m 10 "http://$DOMAIN" || true
+            curl -k -I -m 10 "https://$DOMAIN" || true
 
             echo "===== TLS CERT SUBJECT FOR EXTRACASH ====="
-            echo | openssl s_client -servername extracash.mkopaji.com -connect extracash.mkopaji.com:443 2>/dev/null | openssl x509 -noout -subject -issuer -dates || true
+            echo | openssl s_client -servername "$DOMAIN" -connect "$DOMAIN":443 2>/dev/null | openssl x509 -noout -subject -issuer -dates || true

@@ -1,20 +1,20 @@
-name: Deploy Production
+name: Deploy Staging
 
 on:
   push:
     branches:
-      - main
+      - staging
   workflow_dispatch:
 
 concurrency:
-  group: deploy-production
-  cancel-in-progress: false
+  group: deploy-staging
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: production
+    environment: staging
 
     steps:
       - name: Checkout
@@ -64,7 +64,7 @@ jobs:
 
           ARGS=(
             --host "$DEPLOY_HOST"
-            --domain "${APP_DOMAIN:-extracash.mkopaji.com}"
+            --domain "${APP_DOMAIN:-staging.extracash.mkopaji.com}"
             --email "${CERTBOT_EMAIL:-admin@extracash.mkopaji.com}"
           )
 
@@ -88,6 +88,6 @@ jobs:
           APP_DOMAIN: ${{ vars.APP_DOMAIN }}
         run: |
           set -euo pipefail
-          DOMAIN="${APP_DOMAIN:-extracash.mkopaji.com}"
+          DOMAIN="${APP_DOMAIN:-staging.extracash.mkopaji.com}"
           curl -fsS "https://$DOMAIN" >/dev/null
           curl -fsS "https://$DOMAIN/api/health" >/dev/null
