@@ -96,5 +96,34 @@ jobs:
         run: |
           set -euo pipefail
           DOMAIN="${APP_DOMAIN:-extracash.mkopaji.com}"
-          curl -fsS "https://$DOMAIN" >/dev/null
-          curl -fsS "https://$DOMAIN/api/health" >/dev/null
+          ok=0
+
+          for i in $(seq 1 18); do
+            if curl -fsS --max-time 10 "https://$DOMAIN/api/health" >/dev/null; then
+              ok=1
+              break
+            fi
+
+            if curl -fsS --max-time 10 "http://$DOMAIN/api/health" >/dev/null; then
+              ok=1
+              break
+            fi
+
+            if curl -fsS --max-time 10 "https://$DOMAIN" >/dev/null; then
+              ok=1
+              break
+            fi
+
+            if curl -fsS --max-time 10 "http://$DOMAIN" >/dev/null; then
+              ok=1
+              break
+            fi
+
+            echo "Public health check retry ${i}/18"
+            sleep 10
+          done
+
+          if [ "$ok" -ne 1 ]; then
+            echo "Public endpoint did not become healthy in time: $DOMAIN"
+            exit 1
+          fi
