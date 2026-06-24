@@ -79,24 +79,37 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCAL_BACKEND_ENV="${SCRIPT_DIR}/backend/.env"
 LOCAL_FRONTEND_ENV="${SCRIPT_DIR}/frontend/.env"
 
+SSH_BASE_OPTS=(-o StrictHostKeyChecking=accept-new)
+if [[ -n "${SSH_PASSWORD:-}" ]]; then
+	if ! command -v sshpass >/dev/null 2>&1; then
+		echo "SSH_PASSWORD is set but sshpass is not installed."
+		exit 1
+	fi
+	SSH_CMD=(sshpass -p "$SSH_PASSWORD" ssh "${SSH_BASE_OPTS[@]}")
+	SCP_CMD=(sshpass -p "$SSH_PASSWORD" scp "${SSH_BASE_OPTS[@]}")
+else
+	SSH_CMD=(ssh "${SSH_BASE_OPTS[@]}")
+	SCP_CMD=(scp "${SSH_BASE_OPTS[@]}")
+fi
+
 echo "Starting remote recovery on ${HOST} for ${DOMAIN}"
 
 if [[ "$SYNC_ENV" == "1" ]]; then
 	echo "Syncing local env files to remote temporary location"
-	ssh "$HOST" "mkdir -p /tmp/talaextra-recovery-env"
+	"${SSH_CMD[@]}" "$HOST" "mkdir -p /tmp/talaextra-recovery-env"
 	if [[ -f "$LOCAL_BACKEND_ENV" ]]; then
-		scp "$LOCAL_BACKEND_ENV" "$HOST:/tmp/talaextra-recovery-env/backend.env"
+		"${SCP_CMD[@]}" "$LOCAL_BACKEND_ENV" "$HOST:/tmp/talaextra-recovery-env/backend.env"
 	else
 		echo "Local backend/.env not found. Remote will fallback to .env.example"
 	fi
 	if [[ -f "$LOCAL_FRONTEND_ENV" ]]; then
-		scp "$LOCAL_FRONTEND_ENV" "$HOST:/tmp/talaextra-recovery-env/frontend.env"
+		"${SCP_CMD[@]}" "$LOCAL_FRONTEND_ENV" "$HOST:/tmp/talaextra-recovery-env/frontend.env"
 	else
 		echo "Local frontend/.env not found. Remote will fallback to .env.example"
 	fi
 fi
 
-ssh "$HOST" bash -s -- "$DOMAIN" "$EMAIL" "$REPO_URL" "$BRANCH" "$PROJECT_DIR" <<'REMOTE_SCRIPT'
+"${SSH_CMD[@]}" "$HOST" bash -s -- "$DOMAIN" "$EMAIL" "$REPO_URL" "$BRANCH" "$PROJECT_DIR" <<'REMOTE_SCRIPT'
 set -euo pipefail
 
 DOMAIN="$1"
