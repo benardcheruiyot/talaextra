@@ -135,15 +135,33 @@ upsert_env() {
 	fi
 }
 
+apt_safe() {
+	local tries=18
+	local delay=10
+	local i
+
+	for i in $(seq 1 "$tries"); do
+		if apt-get "$@"; then
+			return 0
+		fi
+
+		echo "apt-get $* failed (attempt ${i}/${tries}); waiting for package manager lock"
+		sleep "$delay"
+	done
+
+	echo "apt-get $* failed after ${tries} attempts"
+	return 1
+}
+
 echo "[1/8] Installing system dependencies"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -y ca-certificates curl git nginx certbot python3-certbot-nginx
+apt_safe update
+apt_safe install -y ca-certificates curl git nginx certbot python3-certbot-nginx
 
 if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
 	echo "Installing Node.js 20 + npm"
 	curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-	apt-get install -y nodejs
+	apt_safe install -y nodejs
 fi
 
 if ! command -v pm2 >/dev/null 2>&1; then
