@@ -120,6 +120,9 @@ PROJECT_DIR="$5"
 
 WWW_DOMAIN="www.${DOMAIN}"
 NGINX_CONF="/etc/nginx/sites-available/${DOMAIN}.conf"
+LE_CERT_DIR="/etc/letsencrypt/live/${DOMAIN}"
+LE_FULLCHAIN="${LE_CERT_DIR}/fullchain.pem"
+LE_PRIVKEY="${LE_CERT_DIR}/privkey.pem"
 
 upsert_env() {
 	local key="$1"
@@ -248,6 +251,41 @@ pm2 save
 pm2 startup systemd -u root --hp /root >/dev/null 2>&1 || true
 
 echo "[7/8] Configuring Nginx"
+if [[ -f "$LE_FULLCHAIN" && -f "$LE_PRIVKEY" ]]; then
+cat > "$NGINX_CONF" <<NGINX
+server {
+	listen 80;
+	server_name ${DOMAIN} ${WWW_DOMAIN};
+	return 301 https://\$host\$request_uri;
+}
+
+server {
+	listen 443 ssl http2;
+	server_name ${DOMAIN} ${WWW_DOMAIN};
+
+	root ${PROJECT_DIR}/frontend/build;
+	index index.html;
+
+	ssl_certificate ${LE_FULLCHAIN};
+	ssl_certificate_key ${LE_PRIVKEY};
+	include /etc/letsencrypt/options-ssl-nginx.conf;
+	ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+	location /api/ {
+		proxy_pass http://127.0.0.1:5000/api/;
+		proxy_http_version 1.1;
+		proxy_set_header Host \$host;
+		proxy_set_header X-Real-IP \$remote_addr;
+		proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Proto \$scheme;
+	}
+
+	location / {
+		try_files \$uri /index.html;
+	}
+}
+NGINX
+else
 cat > "$NGINX_CONF" <<NGINX
 server {
 	listen 80;
@@ -270,6 +308,7 @@ server {
 	}
 }
 NGINX
+fi
 
 ln -sf "$NGINX_CONF" "/etc/nginx/sites-enabled/${DOMAIN}.conf"
 rm -f /etc/nginx/sites-enabled/default
