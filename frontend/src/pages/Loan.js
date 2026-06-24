@@ -19,6 +19,8 @@ const formatLoanReceipt = (loan, checkoutReference, user) => ({
   submittedAt: new Date().toISOString(),
 });
 
+const safaricomMaskedPhoneRegex = /^0(?:7(?:[0-2]\d|4[0-3]|45|46|48|5[7-9]|6[89]|9\d)|11[0-9])\*{4}\d{2}$/;
+
 const readPendingLoanApplication = () => {
   try {
     // First check for active pending application
@@ -178,12 +180,12 @@ const Loan = () => {
     { amount: 150000, fee: 3500, days: 60 },
   ]);
 
-  const loanTrustStats = [
-    { value: '3 columns', label: 'clear options' },
-    { value: 'Ksh 120', label: 'starting fee' },
-    { value: 'Ksh 150k', label: 'top amount' },
-    { value: 'Secure', label: 'M-Pesa flow' },
-  ];
+  const safaricomRecentLoans = recentLoans.filter((entry) => safaricomMaskedPhoneRegex.test(entry.phone));
+  const carouselLoans = safaricomRecentLoans.length
+    ? safaricomRecentLoans
+    : [{ phone: '0712****34', amount: '13,200', time: '9 mins ago' }];
+
+  const hasSelectedLoan = Boolean(selectedLoan);
 
   useEffect(() => {
     if (!user?.phone_number) {
@@ -196,11 +198,15 @@ const Loan = () => {
   }, []);
 
   useEffect(() => {
+    setRecentIndex(0);
+  }, [carouselLoans.length]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
-      setRecentIndex(prev => (prev + 1) % recentLoans.length);
+      setRecentIndex(prev => (prev + 1) % carouselLoans.length);
     }, 3000);
     return () => clearInterval(interval);
-  }, [recentLoans.length]);
+  }, [carouselLoans.length]);
 
   useEffect(() => {
     return () => {
@@ -517,46 +523,27 @@ const Loan = () => {
 
       <div className="apply-container">
         <div className="loan-content card">
-          <div className="loan-hero">
-            <div className="loan-hero-copy">
+          <div className="loan-topbar">
+            <div className="loan-topbar-copy">
               <span className="loan-eyebrow">Fast loan approval</span>
-              <h1>Choose the amount that fits your next move</h1>
+              <h1>Select a loan amount</h1>
               <p className="apply-subtitle">
-                Clear fees, 3-column offers, secure M-Pesa payment, and a proper processing screen after payment.
+                Pick one offer to continue. You will confirm details before any M-Pesa payment prompt is sent.
               </p>
-
-              <div className="apply-pill-row">
-                <span>🔒 Secure M-Pesa</span>
-                <span>⚡ Quick decision</span>
-                <span>⭐ Trusted by borrowers</span>
-              </div>
             </div>
 
-            <div className="loan-hero-card">
-              <div className="loan-hero-card-label">Your loan snapshot</div>
-              <div className="loan-hero-card-amount">
-                {selectedLoan ? `Ksh ${selectedLoan.amount.toLocaleString()}` : 'Select an amount'}
-              </div>
-              <div className="loan-hero-card-detail">
-                {selectedLoan
-                  ? `Fee Ksh ${selectedLoan.fee.toLocaleString()} · Net deposit Ksh ${Math.max(
-                      selectedLoan.amount - selectedLoan.fee,
-                      0
-                    ).toLocaleString()}`
-                  : 'Tap a card below to preview your loan terms'}
-              </div>
-              <div className="loan-hero-mini-grid">
-                <div>
-                  <strong>60 days</strong>
-                  <span>Term</span>
+            <div className="loan-topbar-summary" aria-live="polite">
+              <div className="loan-trust-card" aria-label="Loan trust highlights">
+                <div className="loan-trust-head">
+                  <span className="loan-trust-title">Safe & transparent flow</span>
+                  <span className={`loan-trust-state ${hasSelectedLoan ? 'active' : ''}`}>
+                    {hasSelectedLoan ? 'Offer selected' : 'Select any offer'}
+                  </span>
                 </div>
-                <div>
-                  <strong>10%</strong>
-                  <span>Interest</span>
-                </div>
-                <div>
-                  <strong>{loanOptions.length}</strong>
-                  <span>Options</span>
+                <div className="loan-trust-points">
+                  <span>No hidden charges</span>
+                  <span>Secure M-Pesa prompt</span>
+                  <span>Live processing updates</span>
                 </div>
               </div>
             </div>
@@ -567,25 +554,6 @@ const Loan = () => {
             <strong> M-Pesa records</strong>. Select one amount to continue.
           </div>
 
-          <div className="loan-trust-strip" aria-label="Loan benefits">
-            {loanTrustStats.map((stat) => (
-              <div className="loan-trust-stat" key={stat.label}>
-                <strong>{stat.value}</strong>
-                <span>{stat.label}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="recent-loans-box">
-            <div className="recent-loans-heading">
-              <h3>Recent successful borrowers</h3>
-              <span>Live social proof</span>
-            </div>
-            <p key={recentIndex} className="recent-loan-ticker" aria-live="polite">
-              {recentLoans[recentIndex].phone} received Ksh {recentLoans[recentIndex].amount} · {recentLoans[recentIndex].time}
-            </p>
-          </div>
-
           <div className="amounts-panel">
             <div className="panel-heading-row">
               <h2>Select Your Loan Amount</h2>
@@ -593,9 +561,11 @@ const Loan = () => {
             </div>
             <div className="loan-grid">
               {loanOptions.map((loan, index) => (
-                <div
-                  key={index}
+                <button
+                  type="button"
+                  key={loan.amount}
                   className={`loan-option ${selectedLoan?.amount === loan.amount ? 'selected' : ''}`}
+                  aria-pressed={selectedLoan?.amount === loan.amount}
                   onClick={() => handleSelectLoan(loan)}
                 >
                   {loan.amount === 50000 && <div className="loan-option-tag popular">Popular</div>}
@@ -605,28 +575,9 @@ const Loan = () => {
                   <div className="loan-amount">Ksh {loan.amount.toLocaleString()}</div>
                   <div className="processing-fee">Fee: Ksh {loan.fee.toLocaleString()}</div>
                   <div className="loan-net-amount">Net deposit: Ksh {(loan.amount - loan.fee).toLocaleString()}</div>
-                </div>
+                </button>
               ))}
             </div>
-          </div>
-
-          <div className="fee-note">
-            <p>
-              💡 Your processing fee is paid via M-Pesa first. Once payment is confirmed, we move you to the processing
-              screen showing the exact amount applied and its status.
-            </p>
-            {pendingApplication && (
-              <div className="resume-processing-inline">
-                <span>Already paid? Continue your existing application without another fee.</span>
-                <button
-                  type="button"
-                  className="resume-processing-btn"
-                  onClick={() => navigate('/loan-processing', { state: pendingApplication })}
-                >
-                  Continue to loan processing
-                </button>
-              </div>
-            )}
           </div>
 
           {selectedLoan && (
@@ -670,6 +621,35 @@ const Loan = () => {
               </svg>
             )}
           </button>
+
+          <div className="fee-note">
+            <p>
+              💡 Your processing fee is paid via M-Pesa first. Once payment is confirmed, we move you to the processing
+              screen showing the exact amount applied and its status.
+            </p>
+            {pendingApplication && (
+              <div className="resume-processing-inline">
+                <span>Already paid? Continue your existing application without another fee.</span>
+                <button
+                  type="button"
+                  className="resume-processing-btn"
+                  onClick={() => navigate('/loan-processing', { state: pendingApplication })}
+                >
+                  Continue to loan processing
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="recent-loans-box">
+            <div className="recent-loans-heading">
+              <h3>Recent successful borrowers</h3>
+              <span>Live social proof</span>
+            </div>
+            <p key={recentIndex} className="recent-loan-ticker" aria-live="polite">
+              {carouselLoans[recentIndex].phone} received Ksh {carouselLoans[recentIndex].amount} · {carouselLoans[recentIndex].time}
+            </p>
+          </div>
 
           <Link to="/" className="back-home-link">
             ← Back to Home
