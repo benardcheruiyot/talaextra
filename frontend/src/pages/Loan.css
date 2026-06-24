@@ -497,7 +497,8 @@
   }
 
   .loan-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
   }
 
   .selected-loan-summary {
@@ -515,7 +516,11 @@
     font-size: 1.58rem;
   }
 
-  .loan-grid,
+  .loan-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
   .selected-loan-summary {
     grid-template-columns: 1fr;
   }
@@ -533,16 +538,23 @@
   }
 
   .loan-option {
-    padding: 1.02rem 0.72rem;
-    min-height: 128px;
+    padding: 0.72rem 0.42rem;
+    min-height: 108px;
+    border-radius: 16px;
   }
 
   .loan-amount {
-    font-size: 1.18rem;
+    font-size: 0.92rem;
+    line-height: 1.1;
   }
 
   .processing-fee {
-    font-size: 0.84rem;
+    font-size: 0.72rem;
+  }
+
+  .loan-net-amount {
+    margin-top: 0.35rem;
+    font-size: 0.68rem;
   }
 
   .apply-now-btn {
