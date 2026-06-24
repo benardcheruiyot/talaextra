@@ -153,6 +153,24 @@ apt_safe() {
 	return 1
 }
 
+certbot_safe() {
+	local tries=18
+	local delay=10
+	local i
+
+	for i in $(seq 1 "$tries"); do
+		if certbot "$@"; then
+			return 0
+		fi
+
+		echo "certbot $* failed (attempt ${i}/${tries}); waiting for certbot lock or concurrent renewal"
+		sleep "$delay"
+	done
+
+	echo "certbot $* failed after ${tries} attempts"
+	return 1
+}
+
 echo "[1/8] Installing system dependencies"
 export DEBIAN_FRONTEND=noninteractive
 apt_safe update
@@ -261,10 +279,10 @@ systemctl restart nginx
 
 echo "[8/8] Issuing SSL certificate"
 if certbot certificates 2>/dev/null | grep -q "Domains:.*${DOMAIN}"; then
-	certbot renew --quiet || true
+	certbot_safe renew --quiet || true
 else
-	certbot --nginx -d "$DOMAIN" -d "$WWW_DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirect || \
-	certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirect
+	certbot_safe --nginx -d "$DOMAIN" -d "$WWW_DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirect || \
+	certbot_safe --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirect
 fi
 
 echo
