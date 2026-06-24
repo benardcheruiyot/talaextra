@@ -159,9 +159,14 @@ apt_safe update
 apt_safe install -y ca-certificates curl git nginx certbot python3-certbot-nginx
 
 if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
-	echo "Installing Node.js 20 + npm"
-	curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-	apt_safe install -y nodejs
+	echo "Installing Node.js and npm"
+	apt_safe install -y nodejs npm || true
+
+	if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+		echo "Falling back to NodeSource Node.js 20 setup"
+		curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+		apt_safe install -y nodejs npm
+	fi
 fi
 
 if ! command -v pm2 >/dev/null 2>&1; then
