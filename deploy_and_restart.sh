@@ -140,8 +140,8 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y ca-certificates curl git nginx certbot python3-certbot-nginx
 
-if ! command -v node >/dev/null 2>&1; then
-	echo "Installing Node.js 20"
+if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+	echo "Installing Node.js 20 + npm"
 	curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 	apt-get install -y nodejs
 fi
